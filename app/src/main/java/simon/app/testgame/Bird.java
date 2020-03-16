@@ -83,7 +83,7 @@ public class Bird {
 
 		Paint textPaint = new Paint();
 		textPaint.setTextSize(80);
-		textPaint.setColor(Color.BLACK);
+		textPaint.setColor(Color.WHITE);
 		textPaint.setTextAlign(Paint.Align.CENTER);
 
 
