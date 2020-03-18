@@ -1,10 +1,8 @@
 package simon.app.testgame;
 
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Rect;
-import android.graphics.drawable.BitmapDrawable;
 
 public class Pipe {
 	private int x, y;
@@ -39,12 +37,13 @@ public class Pipe {
 		canvas.drawBitmap(image, x, y, null);
 	}
 
-	public boolean birdCollide(Bird bird) {
-		return Rect.intersects(getRect(), bird.getRect());
+	public boolean birdCollide(Player player) {
+		return Rect.intersects(getRect(), player.getRect());
 	}
 
 	public int getMiddleX() {
 		return x + image.getWidth() / 2;
 	}
+
 
 }

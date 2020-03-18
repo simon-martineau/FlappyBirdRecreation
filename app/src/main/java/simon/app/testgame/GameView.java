@@ -12,12 +12,26 @@ import android.view.MotionEvent;
 import android.view.SurfaceView;
 import android.view.SurfaceHolder;
 
+
 import java.util.ArrayList;
 import java.util.List;
 
 public class GameView extends SurfaceView implements SurfaceHolder.Callback {
+	// Threading
 	public MainThread thread;
+
+	// Pipes
 	private List<PipeCombo> mPipeCombos = new ArrayList<PipeCombo>();
+	private Bitmap pipeBitmap;
+	private int pipeCoolDown = 120;
+
+	// Planets
+	private List<Bitmap> mPlanetBitmaps = new ArrayList<Bitmap>();
+	private List<Planet> mPlanets = new ArrayList<Planet>();
+	private int planetTimeout = 10;
+	private long planetIndex = 0;
+	private int nPlanets = 9;
+
 	public static final int screenWidth = Resources.getSystem().getDisplayMetrics().widthPixels;
 	public static final int screenHeight = Resources.getSystem().getDisplayMetrics().heightPixels;
 	private long ticks = 0;
@@ -27,13 +41,15 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 	private Rect sky;
 	private Paint skyPaint;
 
-	private Bird bird;
+	private Player ufo;
+	private ScrollingBackground scrollingBackground;
 
-	private Bitmap pipeBitmap;
+
 	private Bitmap reversePipeBitmap;
 	private Bitmap background;
 
-	private int pipeCoolDown = 120;
+	private int endGameTimeOut = 60;
+
 	public int score = 0;
 
 	private boolean userTouched = false;
@@ -51,8 +67,13 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 		setFocusable(true);
 	}
 
+
 	public void update() {
 		if (!gameOver) {
+
+			scrollingBackground.update();
+
+			generatePlanet(-6);
 
 			if (pipeCoolDown > 0) {
 				pipeCoolDown--;
@@ -62,19 +83,23 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 				}
 			}
 
+			for (Planet p : mPlanets) {
+				p.update();
+			}
+
 			if (userTouched) {
-				bird.flap();
+				ufo.flap();
 				userTouched = false;
 			} else {
-				bird.isGroundCollide = bird.groundCollide(ground);
+				ufo.isGroundCollide = ufo.groundCollide(ground);
 			}
-			bird.update();
+			ufo.update();
 
 			for (PipeCombo pipeCombo : mPipeCombos) {
-				if (pipeCombo.birdCollide(bird)) {
+				if (pipeCombo.birdCollide(ufo)) {
 					collision = true;
 				}
-				if (pipeCombo.addScore(bird)) score ++;
+				if (pipeCombo.addScore(ufo)) score ++;
 				pipeCombo.update();
 			}
 
@@ -83,6 +108,8 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 			}
 
 			ticks++;
+		} else {
+			if (endGameTimeOut != 0) endGameTimeOut --;
 		}
 	}
 
@@ -90,23 +117,25 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 	public void draw(Canvas canvas) {
 		super.draw(canvas);
 
-		canvas.drawBitmap(background, 0, 0, null);
-//		canvas.drawRect(sky, skyPaint);
-		bird.draw(canvas);
-		if (canvas != null) {
-			for (PipeCombo pipeCombo : mPipeCombos) {
-				pipeCombo.draw(canvas);
-			}
+		scrollingBackground.draw(canvas);
 
-			canvas.drawRect(ground, groundPaint);
-
-			Paint p = new Paint();
-			p.setColor(Color.BLACK);
-			p.setTextSize(60);
-			canvas.drawText("FPS : " + thread.averageFPS, 100, screenHeight - 50, p);
-			drawGameScore(canvas);
-			if (gameOver) bird.drawGameOver(canvas);
+		for (Planet p : mPlanets) {
+			p.draw(canvas);
 		}
+
+		ufo.draw(canvas);
+		for (PipeCombo pipeCombo : mPipeCombos) {
+			pipeCombo.draw(canvas);
+		}
+
+		canvas.drawRect(ground, groundPaint);
+
+		Paint p = new Paint();
+		p.setColor(Color.BLACK);
+		p.setTextSize(60);
+		canvas.drawText("FPS : " + thread.averageFPS, 100, screenHeight - 50, p);
+		drawGameScore(canvas);
+		if (gameOver) ufo.drawGameOver(canvas);
 
 	}
 
@@ -120,10 +149,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 		thread.setRunning(true);
 		thread.start();
 
-		pipeBitmap = Bitmap.createScaledBitmap(BitmapFactory.decodeResource(getResources(), R.drawable.pipe), 280, 1608, true);
-		reversePipeBitmap = Bitmap.createScaledBitmap(BitmapFactory.decodeResource(getResources(), R.drawable.pipe_inverted), 280, 1608, true);
-		background = Bitmap.createScaledBitmap(BitmapFactory.decodeResource(getResources(), R.drawable.space_background), screenWidth, screenHeight, true);
-
 		skyPaint = new Paint();
 		skyPaint.setColor(Color.rgb(168, 234, 240));
 		sky = new Rect();
@@ -134,7 +159,15 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 		ground = new Rect();
 		ground.set(0, (int) (screenHeight - 0.25 * screenHeight), screenWidth, screenHeight);
 
-		bird = new Bird(BitmapFactory.decodeResource(getResources(), R.drawable.bird), ground.top);
+		pipeBitmap = Bitmap.createScaledBitmap(BitmapFactory.decodeResource(getResources(), R.drawable.pipe), 280, 1608, true);
+		reversePipeBitmap = Bitmap.createScaledBitmap(BitmapFactory.decodeResource(getResources(), R.drawable.pipe_inverted), 280, 1608, true);
+		background = Bitmap.createScaledBitmap(BitmapFactory.decodeResource(getResources(), R.drawable.seamless_space), ground.top, ground.top, true);
+
+		ufo = new Player(BitmapFactory.decodeResource(getResources(), R.drawable.ufo), ground.top);
+		scrollingBackground = new ScrollingBackground(-4, background);
+
+		loadPlanetsArray(256);
+
 	}
 
 	@Override
@@ -156,8 +189,8 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 
 		int middleY =  (int) (screenHeight - (screenHeight * (heightPercentage / 100.0)));
 
-		Pipe bottomPipe = new Pipe(pipeBitmap, false, middleY + separation / 2, screenWidth + 300, -10);
-		Pipe topPipe = new Pipe(reversePipeBitmap, true, middleY - separation / 2, screenWidth + 300, -10);
+		Pipe bottomPipe = new Pipe(pipeBitmap, false, middleY + separation / 2, screenWidth + 300, -12);
+		Pipe topPipe = new Pipe(reversePipeBitmap, true, middleY - separation / 2, screenWidth + 300, -12);
 
 		PipeCombo combo = new PipeCombo(topPipe, bottomPipe);
 
@@ -166,7 +199,12 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 
 	@Override
 	public boolean onTouchEvent(MotionEvent event) {
-		userTouched = true;
+
+		if (!gameOver) {
+			userTouched = true;
+		} else {
+			if (endGameTimeOut == 0) startNewGame();
+		}
 		return super.onTouchEvent(event);
 	}
 
@@ -181,5 +219,59 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 		int yPos = (int) (ground.top + 500 - ((textPaint.descent() + textPaint.ascent()) / 2));
 
 		canvas.drawText("Score: " + score, xPos, yPos, textPaint);
+	}
+
+	public void startNewGame() {
+
+
+		try {
+			thread.setRunning(false);
+			thread.join();
+		} catch (Exception e) {}
+
+		thread = new MainThread(getHolder(), this);
+		mPipeCombos.clear();
+		mPlanets.clear();
+		pipeCoolDown = 120;
+		endGameTimeOut = 60;
+		score = 0;
+		ufo = new Player(BitmapFactory.decodeResource(getResources(), R.drawable.ufo), ground.top);
+		thread.setRunning(true);
+		thread.start();
+		collision = false;
+		gameOver = false;
+	}
+
+	public static Bitmap scaleToHeight(Bitmap bmp, int height) {
+		float aspectRatio = bmp.getWidth() / (float) bmp.getHeight();
+
+		return Bitmap.createScaledBitmap(bmp, (int) (height * aspectRatio), height, true);
+	}
+
+	private void loadPlanetsArray(int height) {
+		mPlanetBitmaps.add(scaleToHeight(BitmapFactory.decodeResource(getResources(), R.drawable.planet_1), height));
+		mPlanetBitmaps.add(scaleToHeight(BitmapFactory.decodeResource(getResources(), R.drawable.planet_2), height));
+		mPlanetBitmaps.add(scaleToHeight(BitmapFactory.decodeResource(getResources(), R.drawable.planet_3), height));
+		mPlanetBitmaps.add(scaleToHeight(BitmapFactory.decodeResource(getResources(), R.drawable.planet_4), height));
+		mPlanetBitmaps.add(scaleToHeight(BitmapFactory.decodeResource(getResources(), R.drawable.planet_5), height));
+		mPlanetBitmaps.add(scaleToHeight(BitmapFactory.decodeResource(getResources(), R.drawable.planet_6), height));
+		mPlanetBitmaps.add(scaleToHeight(BitmapFactory.decodeResource(getResources(), R.drawable.planet_7), height));
+		mPlanetBitmaps.add(scaleToHeight(BitmapFactory.decodeResource(getResources(), R.drawable.planet_8), height));
+		mPlanetBitmaps.add(scaleToHeight(BitmapFactory.decodeResource(getResources(), R.drawable.planet_9), height));
+	}
+
+	private void generatePlanet(int speed) {
+		if (planetTimeout == 0) {
+			int y = (int) ((0.1 + Math.random() * 0.5) * screenHeight);
+
+			Planet planet = new Planet(y, mPlanetBitmaps.get((int) (planetIndex % nPlanets)), speed, screenWidth + 500);
+			mPlanets.add(planet);
+
+			planetIndex++;
+			planetTimeout = (int) (80 + Math.random() * 40);
+
+		} else {
+			planetTimeout--;
+		}
 	}
 }

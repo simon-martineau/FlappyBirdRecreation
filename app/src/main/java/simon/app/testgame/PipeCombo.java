@@ -30,9 +30,9 @@ public class PipeCombo {
 		}
 	}
 
-	public boolean addScore(Bird bird) {
+	public boolean addScore(Player player) {
 		if (!passedBird) {
-			if (bird.getCenterX() > x) {
+			if (player.getCenterX() > x) {
 				passedBird = true;
 				return true;
 			}
@@ -40,9 +40,9 @@ public class PipeCombo {
 		return false;
 	}
 
-	public boolean birdCollide(Bird bird) {
+	public boolean birdCollide(Player player) {
 		for (Pipe p : pipes) {
-			if (p.birdCollide(bird)) return true;
+			if (p.birdCollide(player)) return true;
 		}
 		return false;
 	}

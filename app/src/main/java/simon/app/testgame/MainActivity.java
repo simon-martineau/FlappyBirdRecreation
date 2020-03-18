@@ -6,6 +6,8 @@ import android.os.Bundle;
 import android.view.Window;
 import android.view.WindowManager;
 
+import androidx.annotation.NonNull;
+
 public class MainActivity extends Activity {
 
 	// TODO: Create thread to load assets
@@ -23,5 +25,17 @@ public class MainActivity extends Activity {
 
 		setContentView(new GameView(this));
 
+	}
+
+	@Override
+	protected void onSaveInstanceState(@NonNull Bundle outState) {
+		super.onSaveInstanceState(outState);
+	}
+
+	@Override
+	protected void onResume() {
+		super.onResume();
+
+		setContentView(new GameView(this));
 	}
 }

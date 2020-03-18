@@ -7,7 +7,7 @@ import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Rect;
 
-public class Bird {
+public class Player {
 	private int x = (int) (GameView.screenWidth * 0.2);
 	private double y = 200;
 
@@ -19,7 +19,7 @@ public class Bird {
 
 	private Bitmap image;
 
-	public Bird(Bitmap bmp, int groundLevel) {
+	public Player(Bitmap bmp, int groundLevel) {
 
 		image = Bitmap.createScaledBitmap(bmp, 180, 127, true);
 		this.groundLevel = groundLevel;
@@ -45,7 +45,7 @@ public class Bird {
 		if (rotation > 90) rotation = 90;
 
 		matrix.reset();
-		matrix.postRotate(rotation, image.getWidth() / 2f, image.getHeight() / 2f);
+		matrix.postRotate(2, image.getWidth() / 2f, image.getHeight() / 2f);
 		matrix.postTranslate(x, (int) y);
 
 //
